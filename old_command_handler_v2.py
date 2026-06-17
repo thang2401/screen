@@ -1,5 +1,5 @@
-"""
-Command Handler - Xử lý các lệnh điều khiển từ server.
+﻿"""
+Command Handler - Xß╗¡ l├╜ c├íc lß╗çnh ─æiß╗üu khiß╗ân tß╗½ server.
 """
 
 import json
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class CommandHandler:
     """
-    Xử lý tất cả các lệnh từ server:
+    Xß╗¡ l├╜ tß║Ñt cß║ú c├íc lß╗çnh tß╗½ server:
     - System commands (shutdown, restart, lock)
     - Monitoring commands (screenshot, process list)
     - File operations
@@ -45,7 +45,7 @@ class CommandHandler:
         }
 
     async def handle(self, command: str, params: Optional[Dict] = None) -> Dict:
-        """Xử lý một lệnh."""
+        """Xß╗¡ l├╜ mß╗Öt lß╗çnh."""
         handler = self.command_map.get(command)
         if not handler:
             logger.warning(f"Unknown command: {command}")
@@ -59,18 +59,18 @@ class CommandHandler:
             return {'status': 'error', 'message': str(e)}
 
     async def _cmd_lock(self, **kwargs):
-        """Khóa màn hình."""
+        """Kh├│a m├án h├¼nh."""
         if sys.platform == 'win32':
             import ctypes
             ctypes.windll.user32.LockWorkStation()
         return {'message': 'Screen locked'}
 
     async def _cmd_unlock(self, **kwargs):
-        """Mở khóa (chỉ hoạt động với Windows Hello)."""
+        """Mß╗ƒ kh├│a (chß╗ë hoß║ít ─æß╗Öng vß╗¢i Windows Hello)."""
         return {'message': 'Unlock requires user interaction'}
 
     async def _cmd_shutdown(self, **kwargs):
-        """Tắt máy."""
+        """Tß║»t m├íy."""
         delay = kwargs.get('delay', 5)
         if sys.platform == 'win32':
             subprocess.run(['shutdown', '/s', '/t', str(delay), '/c', 'Server requested shutdown'])
@@ -79,14 +79,14 @@ class CommandHandler:
         return {'message': f'Shutting down in {delay}s'}
 
     async def _cmd_restart(self, **kwargs):
-        """Khởi động lại."""
+        """Khß╗ƒi ─æß╗Öng lß║íi."""
         delay = kwargs.get('delay', 5)
         if sys.platform == 'win32':
             subprocess.run(['shutdown', '/r', '/t', str(delay), '/c', 'Server requested restart'])
         return {'message': f'Restarting in {delay}s'}
 
     async def _cmd_message(self, **kwargs):
-        """Hiển thị thông báo."""
+        """Hiß╗ân thß╗ï th├┤ng b├ío."""
         text = kwargs.get('text', '')
         title = kwargs.get('title', 'Message from Server')
 
@@ -101,7 +101,7 @@ class CommandHandler:
         return {'message': 'pong', 'timestamp': __import__('time').time()}
 
     async def _cmd_screenshot(self, **kwargs):
-        """Chụp ảnh màn hình ngay lập tức."""
+        """Chß╗Ñp ß║únh m├án h├¼nh ngay lß║¡p tß╗⌐c."""
         if self.client_service and self.client_service.capture:
             msg_type, data = self.client_service.capture.capture(force_full=True)
             if data:
@@ -113,7 +113,7 @@ class CommandHandler:
         return {'message': 'Screenshot failed'}
 
     async def _cmd_process_list(self, **kwargs):
-        """Lấy danh sách tiến trình."""
+        """Lß║Ñy danh s├ích tiß║┐n tr├¼nh."""
         if sys.platform == 'win32':
             result = subprocess.run(['tasklist', '/FO', 'CSV', '/NH'],
                                     capture_output=True, text=True)
@@ -131,7 +131,7 @@ class CommandHandler:
         return {'processes': []}
 
     async def _cmd_run_command(self, **kwargs):
-        """Chạy lệnh tùy chỉnh."""
+        """Chß║íy lß╗çnh t├╣y chß╗ënh."""
         cmd = kwargs.get('command', '')
         if not cmd:
             return {'error': 'No command specified'}
@@ -149,7 +149,7 @@ class CommandHandler:
         }
 
     async def _cmd_update_config(self, **kwargs):
-        """Cập nhật cấu hình client."""
+        """Cß║¡p nhß║¡t cß║Ñu h├¼nh client."""
         if self.client_service:
             for key, value in kwargs.items():
                 if hasattr(self.client_service.config, key):
@@ -158,7 +158,7 @@ class CommandHandler:
         return {'message': 'Config update failed'}
 
     async def _cmd_get_system_info(self, **kwargs):
-        """Lấy thông tin hệ thống."""
+        """Lß║Ñy th├┤ng tin hß╗ç thß╗æng."""
         import platform
         import psutil
 
@@ -174,7 +174,7 @@ class CommandHandler:
         }
 
     async def _cmd_open_url(self, **kwargs):
-        """Mở URL trong browser."""
+        """Mß╗ƒ URL trong browser."""
         url = kwargs.get('url', '')
         if url:
             import webbrowser
@@ -183,7 +183,7 @@ class CommandHandler:
         return {'error': 'No URL provided'}
 
     async def _cmd_block_url(self, **kwargs):
-        """Chặn URL (thêm vào hosts file)."""
+        """Chß║╖n URL (th├¬m v├áo hosts file)."""
         url = kwargs.get('url', '')
         if not url:
             return {'error': 'No URL provided'}
@@ -202,13 +202,13 @@ class CommandHandler:
             return {'error': f'Block failed: {e}'}
 
     async def _cmd_mouse_move(self, **kwargs):
-        """Di chuyển chuột dựa trên tọa độ %."""
+        """Di chuyß╗ân chuß╗Öt dß╗▒a tr├¬n tß╗ìa ─æß╗Ö %."""
         try:
             x_percent = kwargs.get('x_percent', 0.5)
             y_percent = kwargs.get('y_percent', 0.5)
             
             if sys.platform == 'win32':
-                # TỐI ƯU 100% PING: Gắn trực tiếp vào Kernel C++ của Windows (0ms Latency)
+                # Tß╗ÉI ╞»U 100% PING: Gß║»n trß╗▒c tiß║┐p v├áo Kernel C++ cß╗ºa Windows (0ms Latency)
                 import ctypes
                 user32 = ctypes.windll.user32
                 sw, sh = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
@@ -230,7 +230,7 @@ class CommandHandler:
             return {'error': str(e)}
 
     async def _cmd_mouse_click(self, **kwargs):
-        """Click chuột dựa trên tọa độ %."""
+        """Click chuß╗Öt dß╗▒a tr├¬n tß╗ìa ─æß╗Ö %."""
         try:
             x_percent = kwargs.get('x_percent', 0.5)
             y_percent = kwargs.get('y_percent', 0.5)
@@ -281,7 +281,7 @@ class CommandHandler:
             return {'error': str(e)}
 
     async def _cmd_mouse_scroll(self, **kwargs):
-        """Cuộn chuột."""
+        """Cuß╗Ön chuß╗Öt."""
         try:
             dy = kwargs.get('dy', 0)
             
@@ -309,95 +309,40 @@ class CommandHandler:
             return {'error': str(e)}
 
     async def _cmd_keyboard(self, **kwargs):
-        """Nhấn/Nhả phím sử dụng ctypes SendInput (Chống lỗi Unikey và phân biệt hoa/thường)."""
+        """Nhß║Ñn/Nhß║ú ph├¡m."""
         try:
             key_str = kwargs.get('key', '')
             is_pressed = kwargs.get('is_pressed', None)
             
-            import sys
-            if sys.platform != 'win32':
-                return {'error': 'Only supported on Windows'}
-                
-            import ctypes
-            from ctypes import wintypes
+            import pyautogui
+            pyautogui.FAILSAFE = False
+            pyautogui.PAUSE = 0
             
-            ULONG_PTR = ctypes.c_size_t
-            class KEYBDINPUT(ctypes.Structure):
-                _fields_ = (("wVk", wintypes.WORD),
-                            ("wScan", wintypes.WORD),
-                            ("dwFlags", wintypes.DWORD),
-                            ("time", wintypes.DWORD),
-                            ("dwExtraInfo", ULONG_PTR))
-            class INPUT_union(ctypes.Union):
-                _fields_ = (("ki", KEYBDINPUT), ("mi", ctypes.c_int * 6), ("hi", ctypes.c_int * 2))
-            class INPUT(ctypes.Structure):
-                _fields_ = (("type", wintypes.DWORD), ("union", INPUT_union))
-                
-            INPUT_KEYBOARD = 1
-            KEYEVENTF_EXTENDEDKEY = 0x0001
-            KEYEVENTF_KEYUP = 0x0002
-            KEYEVENTF_SCANCODE = 0x0008
-            
-            # Map tên phím gửi từ Server sang Virtual-Key Code (wVk)
             special_keys = {
-                'enter': 0x0D, 'backspace': 0x08, 'tab': 0x09, 'esc': 0x1B,
-                'shift': 0x10, 'ctrl': 0x11, 'alt': 0x12, 'win': 0x5B,
-                'up': 0x26, 'down': 0x28, 'left': 0x25, 'right': 0x27,
-                'capslock': 0x14, 'delete': 0x2E, 'space': 0x20,
-                'pageup': 0x21, 'pagedown': 0x22, 'home': 0x24, 'end': 0x23,
-                'insert': 0x2D, 'apps': 0x5D
+                'Enter': 'enter', 'Backspace': 'backspace', 'Tab': 'tab', 'Escape': 'esc',
+                'Shift': 'shift', 'Control': 'ctrl', 'Alt': 'alt', 'Meta': 'win',
+                'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right',
+                'CapsLock': 'capslock', 'Delete': 'delete', ' ': 'space'
             }
             
-            target_key = key_str.lower()
-            vk = special_keys.get(target_key)
-            
-            if not vk and len(target_key) == 1:
-                # Tìm wVk cho các phím in được (a-z, 0-9, dấu câu)
-                vk_res = ctypes.windll.user32.VkKeyScanW(ord(key_str))
-                if vk_res != -1:
-                    vk = vk_res & 0xFF
+            target_key = special_keys.get(key_str, key_str.lower())
+            valid_keys = pyautogui.KEY_NAMES
+            if target_key in valid_keys or len(target_key) == 1:
+                if is_pressed is None:
+                    pyautogui.press(target_key, _pause=False)
+                elif is_pressed:
+                    pyautogui.keyDown(target_key, _pause=False)
+                else:
+                    pyautogui.keyUp(target_key, _pause=False)
                     
-            if not vk:
-                return {'error': f'Unsupported key: {key_str}'}
-                
-            # Sinh Hardware Scancode (Rất quan trọng để đánh lừa Unikey và OS)
-            scan = ctypes.windll.user32.MapVirtualKeyW(vk, 0)
-            
-            flags = KEYEVENTF_SCANCODE
-            # Các phím mở rộng cần cờ EXTENDEDKEY
-            if vk in (0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E, 0x5B, 0x5C, 0x5D):
-                flags |= KEYEVENTF_EXTENDEDKEY
-                
-            inputs = []
-            def add_input(up=False):
-                inp = INPUT()
-                inp.type = INPUT_KEYBOARD
-                inp.union.ki.wVk = 0 # Phải bằng 0 khi dùng SCANCODE
-                inp.union.ki.wScan = scan
-                inp.union.ki.dwFlags = flags | (KEYEVENTF_KEYUP if up else 0)
-                inputs.append(inp)
-                
-            if is_pressed is None:
-                add_input(False)
-                add_input(True)
-            elif is_pressed:
-                add_input(False)
-            else:
-                add_input(True)
-                
-            if inputs:
-                nInputs = len(inputs)
-                pInputs = (INPUT * nInputs)(*inputs)
-                ctypes.windll.user32.SendInput(nInputs, pInputs, ctypes.sizeof(INPUT))
-                
-            return {'message': f'Key {key_str} processed using SendInput'}
+            return {'message': 'Key processed via pyautogui'}
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Key event error: {e}")
             return {'error': str(e)}
 
     async def _cmd_type_text(self, **kwargs):
-        """Gõ chuỗi văn bản Unicode (Hỗ trợ tiếng Việt từ Unikey Local)."""
+        """G├╡ chuß╗ùi v─ân bß║ún Unicode (Hß╗ù trß╗ú tiß║┐ng Viß╗çt tß╗½ Unikey Local)."""
         try:
             text = kwargs.get('text', '')
             if not text:
@@ -408,7 +353,7 @@ class CommandHandler:
                 import ctypes
                 from ctypes import wintypes
                 
-                # Cấu trúc dành cho SendInput API chuẩn cho cả 32-bit và 64-bit
+                # Cß║Ñu tr├║c d├ánh cho SendInput API chuß║⌐n cho cß║ú 32-bit v├á 64-bit
                 ULONG_PTR = ctypes.c_size_t
                 class KEYBDINPUT(ctypes.Structure):
                     _fields_ = (("wVk",         wintypes.WORD),
@@ -443,10 +388,10 @@ class CommandHandler:
                 KEYEVENTF_UNICODE = 0x0004
                 KEYEVENTF_KEYUP = 0x0002
                 
-                # Cực kỳ quan trọng: Ép hệ điều hành nhả các phím Ctrl, Shift, Alt ra.
-                # Vì khi Unikey dùng chế độ "Sử dụng clipboard cho unicode", nó lén gửi Ctrl+V.
-                # Trình duyệt Web sẽ truyền phím Ctrl sang máy đích, làm máy đích bị đè phím Ctrl.
-                # Khi ta bơm Unicode sang, máy đích tưởng đang bấm "Ctrl + Unicode" nên sẽ xoá mất chữ.
+                # Cß╗▒c kß╗│ quan trß╗ìng: ├ëp hß╗ç ─æiß╗üu h├ánh nhß║ú c├íc ph├¡m Ctrl, Shift, Alt ra.
+                # V├¼ khi Unikey d├╣ng chß║┐ ─æß╗Ö "Sß╗¡ dß╗Ñng clipboard cho unicode", n├│ l├⌐n gß╗¡i Ctrl+V.
+                # Tr├¼nh duyß╗çt Web sß║╜ truyß╗ün ph├¡m Ctrl sang m├íy ─æ├¡ch, l├ám m├íy ─æ├¡ch bß╗ï ─æ├¿ ph├¡m Ctrl.
+                # Khi ta b╞ím Unicode sang, m├íy ─æ├¡ch t╞░ß╗ƒng ─æang bß║Ñm "Ctrl + Unicode" n├¬n sß║╜ xo├í mß║Ñt chß╗».
                 modifiers = [0x11, 0x10, 0x12, 0x5B] # Ctrl, Shift, Alt, LWin
                 for vk in modifiers:
                     ctypes.windll.user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
