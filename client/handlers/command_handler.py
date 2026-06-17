@@ -312,6 +312,7 @@ class CommandHandler:
         """Nhấn/Nhả phím sử dụng ctypes SendInput (Chống lỗi Unikey và phân biệt hoa/thường)."""
         try:
             key_str = kwargs.get('key', '')
+            code_str = kwargs.get('code', '')
             is_pressed = kwargs.get('is_pressed', None)
             
             import sys
@@ -349,35 +350,54 @@ class CommandHandler:
             KEYEVENTF_KEYUP = 0x0002
             KEYEVENTF_SCANCODE = 0x0008
             
-            # Map tên phím gửi từ Server sang Virtual-Key Code (wVk)
-            special_keys = {
-                'enter': 0x0D, 'backspace': 0x08, 'tab': 0x09, 'esc': 0x1B,
-                'shift': 0x10, 'ctrl': 0x11, 'alt': 0x12, 'win': 0x5B,
-                'up': 0x26, 'down': 0x28, 'left': 0x25, 'right': 0x27,
-                'capslock': 0x14, 'delete': 0x2E, 'space': 0x20,
-                'pageup': 0x21, 'pagedown': 0x22, 'home': 0x24, 'end': 0x23,
-                'insert': 0x2D, 'apps': 0x5D
+            # Map JS event.code to Windows Virtual-Key Code (wVk)
+            VK_MAP = {
+                'Backspace': 0x08, 'Tab': 0x09, 'Enter': 0x0D, 'NumpadEnter': 0x0D,
+                'ShiftLeft': 0xA0, 'ShiftRight': 0xA1, 'ControlLeft': 0xA2, 'ControlRight': 0xA3,
+                'AltLeft': 0xA4, 'AltRight': 0xA5, 'Pause': 0x13, 'CapsLock': 0x14,
+                'Escape': 0x1B, 'Space': 0x20, 'PageUp': 0x21, 'PageDown': 0x22,
+                'End': 0x23, 'Home': 0x24, 'ArrowLeft': 0x25, 'ArrowUp': 0x26,
+                'ArrowRight': 0x27, 'ArrowDown': 0x28, 'PrintScreen': 0x2C,
+                'Insert': 0x2D, 'Delete': 0x2E,
+                'Digit0': 0x30, 'Digit1': 0x31, 'Digit2': 0x32, 'Digit3': 0x33,
+                'Digit4': 0x34, 'Digit5': 0x35, 'Digit6': 0x36, 'Digit7': 0x37,
+                'Digit8': 0x38, 'Digit9': 0x39,
+                'KeyA': 0x41, 'KeyB': 0x42, 'KeyC': 0x43, 'KeyD': 0x44, 'KeyE': 0x45,
+                'KeyF': 0x46, 'KeyG': 0x47, 'KeyH': 0x48, 'KeyI': 0x49, 'KeyJ': 0x4A,
+                'KeyK': 0x4B, 'KeyL': 0x4C, 'KeyM': 0x4D, 'KeyN': 0x4E, 'KeyO': 0x4F,
+                'KeyP': 0x50, 'KeyQ': 0x51, 'KeyR': 0x52, 'KeyS': 0x53, 'KeyT': 0x54,
+                'KeyU': 0x55, 'KeyV': 0x56, 'KeyW': 0x57, 'KeyX': 0x58, 'KeyY': 0x59, 'KeyZ': 0x5A,
+                'MetaLeft': 0x5B, 'MetaRight': 0x5C, 'ContextMenu': 0x5D,
+                'Numpad0': 0x60, 'Numpad1': 0x61, 'Numpad2': 0x62, 'Numpad3': 0x63,
+                'Numpad4': 0x64, 'Numpad5': 0x65, 'Numpad6': 0x66, 'Numpad7': 0x67,
+                'Numpad8': 0x68, 'Numpad9': 0x69, 'NumpadMultiply': 0x6A,
+                'NumpadAdd': 0x6B, 'NumpadSubtract': 0x6D, 'NumpadDecimal': 0x6E,
+                'NumpadDivide': 0x6F,
+                'F1': 0x70, 'F2': 0x71, 'F3': 0x72, 'F4': 0x73, 'F5': 0x74, 'F6': 0x75,
+                'F7': 0x76, 'F8': 0x77, 'F9': 0x78, 'F10': 0x79, 'F11': 0x7A, 'F12': 0x7B,
+                'NumLock': 0x90, 'ScrollLock': 0x91,
+                'Semicolon': 0xBA, 'Equal': 0xBB, 'Comma': 0xBC, 'Minus': 0xBD,
+                'Period': 0xBE, 'Slash': 0xBF, 'Backquote': 0xC0,
+                'BracketLeft': 0xDB, 'Backslash': 0xDC, 'BracketRight': 0xDD, 'Quote': 0xDE
             }
             
-            target_key = key_str.lower()
-            vk = special_keys.get(target_key)
+            vk = VK_MAP.get(code_str)
             
-            if not vk and len(target_key) == 1:
-                # Tìm wVk cho các phím in được (a-z, 0-9, dấu câu)
+            if not vk and len(key_str) == 1:
+                # Fallback cho phím không nằm trong code map
                 vk_res = ctypes.windll.user32.VkKeyScanW(ord(key_str))
                 if vk_res != -1:
                     vk = vk_res & 0xFF
                     
             if not vk:
-                return {'error': f'Unsupported key: {key_str}'}
+                return {'error': f'Unsupported key/code: {key_str}/{code_str}'}
                 
             # Sinh Hardware Scancode
             scan = ctypes.windll.user32.MapVirtualKeyW(vk, 0)
             
-            # Thay vì chỉ dùng SCANCODE (có thể gây lỗi thiếu VK_CODE trên vài app), ta truyền luôn cả vk và scan
-            # Bỏ cờ KEYEVENTF_SCANCODE để HĐH nhận đúng wVk, Unikey sẽ không nhảy chữ vì ta gõ từng phím cứng.
+            # Cờ KEYEVENTF_EXTENDEDKEY rất quan trọng cho các phím mũi tên, home/end, right ctrl/alt...
             flags = 0
-            if vk in (0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E, 0x5B, 0x5C, 0x5D):
+            if vk in (0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E, 0x5B, 0x5C, 0x5D, 0x6F, 0xA3, 0xA5) or code_str == 'NumpadEnter':
                 flags |= KEYEVENTF_EXTENDEDKEY
                 
             inputs = []
@@ -403,9 +423,9 @@ class CommandHandler:
                 inserted = ctypes.windll.user32.SendInput(nInputs, pInputs, ctypes.sizeof(INPUT))
                 if inserted == 0:
                     import logging
-                    logging.getLogger(__name__).warning(f"SendInput failed for key {key_str}")
+                    logging.getLogger(__name__).warning(f"SendInput failed for key {key_str}/{code_str}")
                     
-            return {'message': f'Key {key_str} processed using SendInput'}
+            return {'message': f'Key {code_str or key_str} processed using SendInput'}
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Key event error: {e}")

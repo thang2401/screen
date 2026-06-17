@@ -16,7 +16,7 @@ Chạy Client kết nối với Server: Mở Terminal/CMD trên Máy Con, di chu
 Ví dụ:
 
 bash
-python run_client.py MAY_01 100.90.9.76
+python run_client.py MAY_39 100.90.9.76
 Lúc này, Máy con MAY_01 sẽ lập tức kết nối và truyền hình ảnh Full HD siêu mượt lên giao diện của Máy chủ.
 
 💡 Mẹo Pro: Cách chạy ẩn Client không hiện cửa sổ đen
