@@ -328,8 +328,19 @@ class CommandHandler:
                             ("dwFlags", wintypes.DWORD),
                             ("time", wintypes.DWORD),
                             ("dwExtraInfo", ULONG_PTR))
+            class MOUSEINPUT(ctypes.Structure):
+                _fields_ = (("dx", wintypes.LONG),
+                            ("dy", wintypes.LONG),
+                            ("mouseData", wintypes.DWORD),
+                            ("dwFlags", wintypes.DWORD),
+                            ("time", wintypes.DWORD),
+                            ("dwExtraInfo", ULONG_PTR))
+            class HARDWAREINPUT(ctypes.Structure):
+                _fields_ = (("uMsg", wintypes.DWORD),
+                            ("wParamL", wintypes.WORD),
+                            ("wParamH", wintypes.WORD))
             class INPUT_union(ctypes.Union):
-                _fields_ = (("ki", KEYBDINPUT), ("mi", ctypes.c_int * 6), ("hi", ctypes.c_int * 2))
+                _fields_ = (("ki", KEYBDINPUT), ("mi", MOUSEINPUT), ("hi", HARDWAREINPUT))
             class INPUT(ctypes.Structure):
                 _fields_ = (("type", wintypes.DWORD), ("union", INPUT_union))
                 
@@ -360,11 +371,12 @@ class CommandHandler:
             if not vk:
                 return {'error': f'Unsupported key: {key_str}'}
                 
-            # Sinh Hardware Scancode (Rất quan trọng để đánh lừa Unikey và OS)
+            # Sinh Hardware Scancode
             scan = ctypes.windll.user32.MapVirtualKeyW(vk, 0)
             
-            flags = KEYEVENTF_SCANCODE
-            # Các phím mở rộng cần cờ EXTENDEDKEY
+            # Thay vì chỉ dùng SCANCODE (có thể gây lỗi thiếu VK_CODE trên vài app), ta truyền luôn cả vk và scan
+            # Bỏ cờ KEYEVENTF_SCANCODE để HĐH nhận đúng wVk, Unikey sẽ không nhảy chữ vì ta gõ từng phím cứng.
+            flags = 0
             if vk in (0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E, 0x5B, 0x5C, 0x5D):
                 flags |= KEYEVENTF_EXTENDEDKEY
                 
@@ -372,7 +384,7 @@ class CommandHandler:
             def add_input(up=False):
                 inp = INPUT()
                 inp.type = INPUT_KEYBOARD
-                inp.union.ki.wVk = 0 # Phải bằng 0 khi dùng SCANCODE
+                inp.union.ki.wVk = vk
                 inp.union.ki.wScan = scan
                 inp.union.ki.dwFlags = flags | (KEYEVENTF_KEYUP if up else 0)
                 inputs.append(inp)
@@ -388,8 +400,11 @@ class CommandHandler:
             if inputs:
                 nInputs = len(inputs)
                 pInputs = (INPUT * nInputs)(*inputs)
-                ctypes.windll.user32.SendInput(nInputs, pInputs, ctypes.sizeof(INPUT))
-                
+                inserted = ctypes.windll.user32.SendInput(nInputs, pInputs, ctypes.sizeof(INPUT))
+                if inserted == 0:
+                    import logging
+                    logging.getLogger(__name__).warning(f"SendInput failed for key {key_str}")
+                    
             return {'message': f'Key {key_str} processed using SendInput'}
         except Exception as e:
             import logging
