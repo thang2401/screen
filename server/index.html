@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Dashboard - Screen Monitoring Pro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+        }
+
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 15px;
+        }
+
+        .client-card {
+            background-color: #1e1e1e;
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            transition: border-color 0.3s;
+        }
+
+        .client-card:hover {
+            border-color: #4CAF50;
+        }
+
+        .client-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            background-color: #000;
+            aspect-ratio: 16/9;
+            object-fit: contain;
+        }
+
+        .client-info {
+            padding: 10px;
+            font-size: 14px;
+            background-color: #252525;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        /* Nút Xem chi tiết */
+        .btn-details {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(40, 167, 69, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .client-card:hover .btn-details {
+            opacity: 1;
+        }
+
+        /* Overlay hiển thị 4/5 màn hình */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            position: relative;
+            width: 80vw;
+            /* 4/5 chiều rộng màn hình */
+            height: 80vh;
+            /* 4/5 chiều cao màn hình */
+            background-color: #000;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Style cho phân trang Web */
+        .action-buttons {
+            position: fixed;
+            display: flex;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 5px
+        }
+
+        .prev {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .next {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+
+        }
+
+        .pagination {
+            display: flex;
+            gap: 5px;
+
+
+        }
+
+        .page-btn {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .page-btn.active {
+            background-color: #4CAF50;
+        }
+
+        .modal-content img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            background-color: #F44336;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
+        }
+
+        .close-btn:hover {
+            background-color: #D32F2F;
+        }
+    </style>
+</head>
+
+<body>
+
+
+
+
+
+    <!-- Modal Overlay -->
+    <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">✕</button>
+            <canvas id="modal-canvas" tabindex="0"
+                style="width: 100%; height: 100%; object-fit: contain; outline: none;"></canvas>
+        </div>
+    </div>
+    <!-- Thêm thanh phân trang -->
+
+    <div class="action-buttons">
+        <button class="prev" onclick="prevPage()">◀️</button>
+        <div class="pagination" id="pagination"></div>
+        <button class="next" onclick="nextPage()">▶️</button>
+
+    </div>
+    <div id="grid"></div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const wsStatus = document.getElementById('ws-status');
+        const paginationContainer = document.getElementById('pagination');
+        const clients = {};
+        let activeModalClient = null;
+        let currentPage = 1;
+        const itemsPerPage = 16; // Cấu hình 16 máy / trang giống Desktop App
+
+        // Ẩn Header và xóa khoảng trắng khi được nhúng trực tiếp vào AutoFBManager
+        if (window.location.search.includes('embedded=true')) {
+            document.querySelector('.header').style.display = 'none';
+            document.body.style.padding = '0';
+            document.body.style.backgroundColor = 'transparent';
+        }
+
+        // Thay đổi host tự động tương ứng với IP/Port bạn đang truy cập
+        const wsUrl = `ws://${window.location.host}/ws/web-dashboard`;
+        const ws = new WebSocket(wsUrl);
+
+        // Kênh Admin Control
+        const wsAdminUrl = `ws://${window.location.host}/ws/admin`;
+        let wsAdmin = new WebSocket(wsAdminUrl);
+
+        wsAdmin.onopen = () => console.log("Admin WS Connected");
+        wsAdmin.onclose = () => {
+            console.log("Admin WS Disconnected. Reconnecting...");
+            setTimeout(() => {
+                wsAdmin = new WebSocket(wsAdminUrl);
+            }, 2000);
+        };
+
+        const canvas = document.getElementById('modal-canvas');
+        const ctx = canvas.getContext('2d');
+
+        ws.onopen = () => {
+            wsStatus.innerText = "Đã kết nối";
+            wsStatus.style.color = "#4CAF50";
+        };
+
+        ws.onclose = () => {
+            wsStatus.innerText = "Mất kết nối";
+            wsStatus.style.color = "#F44336";
+        };
+
+        ws.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+
+            // Xử lý sự kiện máy con ngắt kết nối
+            if (data.disconnected) {
+                const cardToRemove = document.getElementById(`card-${data.client_id}`);
+                if (cardToRemove) {
+                    cardToRemove.remove(); // Xoá giao diện thẻ màn hình
+                }
+                delete clients[data.client_id]; // Xoá khỏi bộ nhớ tạm
+
+                // Nếu đang mở xem chi tiết đúng máy bị ngắt kết nối thì tự đóng
+                if (activeModalClient === data.client_id) {
+                    closeModal();
+                }
+                updatePagination();
+                return;
+            }
+
+            // Nếu client này chưa có card hiển thị thì tạo mới Grid Card
+            if (!clients[data.client_id]) {
+                clients[data.client_id] = true;
+                const card = document.createElement('div');
+                card.className = 'client-card';
+                card.id = `card-${data.client_id}`; // Gắn ID để dễ tìm và xoá
+                card.innerHTML = `
+                    <img id="img-${data.client_id}" src="" alt="Màn hình ${data.client_id}">
+                    <button class="btn-details" onclick="openModal('${data.client_id}')">Xem chi tiết</button>
+                    <div class="client-info">
+                        <strong>🎮 ${data.client_id}</strong>
+                        <span class="status">● Online</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+                updatePagination();
+            }
+
+            // TỐI ƯU HIỆU NĂNG WEB: Chỉ cập nhật src ảnh nếu card đang hiển thị (nằm trong trang hiện hành)
+            const cardElement = document.getElementById(`card-${data.client_id}`);
+            if (cardElement && cardElement.style.display !== 'none') {
+                const imgElement = document.getElementById(`img-${data.client_id}`);
+                if (imgElement) {
+                    imgElement.src = data.image;
+                }
+            }
+
+            // Cập nhật hình ảnh vào Modal nếu máy đó đang được mở xem chi tiết
+            if (activeModalClient === data.client_id) {
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = data.image;
+            }
+        };
+
+        function updatePagination() {
+            const clientIds = Object.keys(clients);
+            const totalPages = Math.max(1, Math.ceil(clientIds.length / itemsPerPage));
+
+            if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+
+            // Cập nhật giao diện nút bấm phân trang
+            paginationContainer.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                btn.innerText = i;
+                btn.onclick = () => {
+                    currentPage = i;
+                    updatePagination();
+                };
+                paginationContainer.appendChild(btn);
+            }
+
+            // Ẩn/hiện các thẻ dựa trên trang hiện tại
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+
+            clientIds.forEach((id, index) => {
+                const card = document.getElementById(`card-${id}`);
+                if (card) {
+                    card.style.display = (index >= startIndex && index < endIndex) ? 'block' : 'none';
+                }
+            });
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                updatePagination();
+            }
+        }
+
+        function nextPage() {
+            const clientIds = Object.keys(clients);
+            const totalPages = Math.max(1, Math.ceil(clientIds.length / itemsPerPage));
+            if (currentPage < totalPages) {
+                currentPage++;
+                updatePagination();
+            }
+        }
+
+        function openModal(clientId) {
+            activeModalClient = clientId;
+            document.getElementById('modal').style.display = 'flex';
+            canvas.focus(); // Focus vào canvas để bắt sự kiện phím
+        }
+
+        function closeModal() {
+            activeModalClient = null;
+            document.getElementById('modal').style.display = 'none';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // --- XỬ LÝ SỰ KIỆN TƯƠNG TÁC CANVAS ---
+
+        function getNormalizedCoordinates(event) {
+            const rect = canvas.getBoundingClientRect();
+            const elementRatio = rect.width / rect.height;
+            const canvasRatio = canvas.width / canvas.height || 16 / 9;
+
+            let renderedWidth, renderedHeight, offsetX = 0, offsetY = 0;
+
+            if (elementRatio > canvasRatio) {
+                // Letterbox 2 bên trái/phải
+                renderedHeight = rect.height;
+                renderedWidth = rect.height * canvasRatio;
+                offsetX = (rect.width - renderedWidth) / 2;
+            } else {
+                // Letterbox trên/dưới
+                renderedWidth = rect.width;
+                renderedHeight = rect.width / canvasRatio;
+                offsetY = (rect.height - renderedHeight) / 2;
+            }
+
+            // Tính toán vị trí click chính xác vào phần hình ảnh
+            const x = event.clientX - rect.left - offsetX;
+            const y = event.clientY - rect.top - offsetY;
+
+            // Tính tỷ lệ % so với kích thước hình ảnh thực tế đang hiển thị
+            const x_percent = x / renderedWidth;
+            const y_percent = y / renderedHeight;
+
+            return {
+                x_percent: Math.max(0, Math.min(1, x_percent)),
+                y_percent: Math.max(0, Math.min(1, y_percent))
+            };
+        }
+
+        function sendCommand(action, data) {
+            if (!activeModalClient) return;
+            if (wsAdmin.readyState === WebSocket.OPEN) {
+                wsAdmin.send(JSON.stringify({
+                    target_id: activeModalClient,
+                    action: action,
+                    data: data
+                }));
+            }
+        }
+
+        function throttle(func, limit) {
+            let inThrottle;
+            return function () {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            }
+        }
+
+        const handleMouseMove = throttle((e) => {
+            const coords = getNormalizedCoordinates(e);
+            sendCommand('mouse_move', {
+                x_percent: coords.x_percent,
+                y_percent: coords.y_percent
+            });
+        }, 33); // ~30 FPS
+
+        canvas.addEventListener('mousemove', handleMouseMove);
+
+        canvas.addEventListener('mousedown', (e) => {
+            const coords = getNormalizedCoordinates(e);
+            sendCommand('mouse_click', {
+                x_percent: coords.x_percent,
+                y_percent: coords.y_percent,
+                button: e.button === 0 ? 'left' : e.button === 2 ? 'right' : 'middle',
+                pressed: true
+            });
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            const coords = getNormalizedCoordinates(e);
+            sendCommand('mouse_click', {
+                x_percent: coords.x_percent,
+                y_percent: coords.y_percent,
+                button: e.button === 0 ? 'left' : e.button === 2 ? 'right' : 'middle',
+                pressed: false
+            });
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            sendCommand('mouse_scroll', {
+                dx: e.deltaX,
+                dy: e.deltaY
+            });
+        }, { passive: false });
+
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        canvas.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            sendCommand('keyboard', {
+                key: e.key,
+                code: e.code,
+                is_pressed: true
+            });
+        });
+
+        canvas.addEventListener('keyup', (e) => {
+            e.preventDefault();
+            sendCommand('keyboard', {
+                key: e.key,
+                code: e.code,
+                is_pressed: false
+            });
+        });
+    </script>
+</body>
+
+</html>

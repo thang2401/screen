@@ -1,0 +1,37 @@
+FROM python:3.11-slim
+
+LABEL maintainer="Screen Monitoring System"
+LABEL version="3.0.0"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    xvfb \
+    x11vnc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python packages
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY . .
+
+# Create data directories
+RUN mkdir -p data/{logs,cache}
+
+# Create virtual display
+ENV DISPLAY=:99
+
+# Run client
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & python client/main.py ${SERVER_HOST:-localhost} ${SERVER_PORT:-8765}"]

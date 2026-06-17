@@ -1,0 +1,33 @@
+# Client Configuration - Screen Monitoring System Pro v3.0
+
+server:
+  host: "127.0.0.1"
+  port: 8765
+  ssl: false
+
+capture:
+  fps: 15
+  quality: 65
+  max_width: 1024
+  grayscale: false
+  use_delta: true
+  delta_block_size: 16
+  use_gpu: false
+
+network:
+  reconnect_interval: 3
+  heartbeat_interval: 3
+  max_message_size: 52428800
+
+stealth:
+  hide_window: true
+  hide_process: false
+  anti_kill: false
+
+encryption:
+  use_encryption: true
+  auth_token: ""
+
+logging:
+  level: "INFO"
+  file: "data/logs/client.log"

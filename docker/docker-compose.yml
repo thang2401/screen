@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    container_name: screen-monitor-server
+    ports:
+      - "8765:8765"
+    volumes:
+      - ../data:/app/data
+      - ../configs:/app/configs
+    environment:
+      - CONFIG_PATH=/app/configs/server.yaml
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: screen-monitor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  client-1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+    container_name: screen-monitor-client-1
+    environment:
+      - SERVER_HOST=server
+      - SERVER_PORT=8765
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  client-2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.client
+    container_name: screen-monitor-client-2
+    environment:
+      - SERVER_HOST=server
+      - SERVER_PORT=8765
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+volumes:
+  redis-data:
+
+networks:
+  monitoring-net:
+    driver: bridge

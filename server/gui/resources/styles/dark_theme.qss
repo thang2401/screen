@@ -1,0 +1,53 @@
+/* Dark Theme for Screen Monitoring System Pro */
+
+QMainWindow {
+    background-color: #1e1e2e;
+    color: #d4d4d4;
+}
+
+QWidget {
+    background-color: transparent;
+    color: #d4d4d4;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+QFrame#clientCard {
+    background-color: #252526;
+    border: 1px solid #3e3e42;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+QFrame#clientCard:hover {
+    border: 1px solid #007acc;
+}
+
+QLabel {
+    color: #cccccc;
+}
+
+QLabel#clientName {
+    font-weight: bold;
+    font-size: 14px;
+    color: #ffffff;
+}
+
+QLabel#clientStatusOnline {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+QLabel#clientStatusOffline {
+    color: #F44336;
+    font-weight: bold;
+}
+
+QMenu {
+    background-color: #2d2d30;
+    border: 1px solid #3e3e42;
+    color: #d4d4d4;
+}
+
+QMenu::item:selected {
+    background-color: #094771;
+}

@@ -1,0 +1,82 @@
+# Server Configuration - Screen Monitoring System Pro v3.0
+
+server:
+  name: "Screen Monitoring System Pro"
+  version: "3.0.0"
+  data_dir: "data"
+
+network:
+  host: "0.0.0.0"
+  port: 8765
+  max_clients: 500
+  max_message_size: 52428800  # 50MB
+  ping_interval: 10
+  ping_timeout: 5
+  heartbeat_timeout: 15
+  send_buffer_size: 262144
+  recv_buffer_size: 262144
+  tcp_nodelay: true
+  ssl_enabled: false
+  ssl_cert: ""
+  ssl_key: ""
+
+database:
+  type: "sqlite"
+  path: "data/database/monitoring.db"
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+encoding:
+  quality: 65
+  max_width: 1024
+  fps: 15
+  grayscale: false
+  use_delta: true
+  delta_block_size: 16
+  enable_gpu: false
+  format: "jpeg"
+
+ai:
+  enabled: true
+  model: "yolov8n.pt"
+  confidence_threshold: 0.65
+  frame_interval: 5
+  batch_size: 4
+  detect_games: true
+  detect_websites: true
+  detect_idle: true
+  detect_cheating: false
+  use_gpu: false
+
+recording:
+  enabled: true
+  fps: 10
+  bitrate: "2M"
+  codec: "h264_nvenc"
+  output_dir: "data/recordings"
+  max_duration_minutes: 60
+  auto_clean_hours: 168
+
+security:
+  encryption_enabled: true
+  master_password: ""
+  key_rotation_hours: 24
+  require_auth: false
+  auth_token: ""
+  jwt_secret: ""
+  jwt_expiry_hours: 24
+  rate_limit_per_second: 100
+
+logging:
+  level: "INFO"
+  file: "data/logs/server.log"
+  max_size_mb: 100
+  backup_count: 10
+  json_format: false
+
+gui:
+  grid_columns: 4
+  dark_theme: true
+  window_width: 1600
+  window_height: 900

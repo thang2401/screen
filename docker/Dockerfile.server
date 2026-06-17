@@ -1,0 +1,40 @@
+FROM python:3.11-slim
+
+LABEL maintainer="Screen Monitoring System"
+LABEL version="3.0.0"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python packages
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY . .
+
+# Create data directories
+RUN mkdir -p data/{screenshots,recordings,logs,database,cache}
+
+# Expose ports
+EXPOSE 8765
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(('localhost', 8765))" || exit 1
+
+# Run server
+CMD ["python", "server/main_pro.py", "--headless"]
