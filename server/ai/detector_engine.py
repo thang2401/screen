@@ -29,6 +29,7 @@ class DetectorEngine:
         self.running = False
         self.model = None
         self.last_detection_time: Dict[str, float] = {}
+        self.client_buffers: Dict[str, np.ndarray] = {}
 
     def _init_model(self):
         if YOLO_AVAILABLE and self.model is None:
@@ -42,21 +43,42 @@ class DetectorEngine:
         client_id = data['client_id']
         is_full = data.get('is_full_frame', False)
         
-        # TỐI ƯU CỰC ĐỘ CHO HÀNG CHỤC MÁY: Bỏ qua hoàn toàn Delta Frame!
-        # AI không cần thiết phải chạy trên từng frame nhỏ lẻ. Nó chỉ lấy Full Frame (2 giây / lần)
-        if not is_full or not data.get('changes'):
-            return None
+        if not data.get('changes'):
+            return self.client_buffers.get(client_id)
 
-        # Chỉ có 1 change cho Full Frame
-        change = data['changes'][0]
-        raw_b64 = change['data']
-        if raw_b64.startswith("data:image/"):
-            raw_b64 = raw_b64.split(",", 1)[1]
+        if is_full:
+            # Chỉ có 1 change cho Full Frame
+            change = data['changes'][0]
+            raw_b64 = change['data']
+            if raw_b64.startswith("data:image/"):
+                raw_b64 = raw_b64.split(",", 1)[1]
+                
+            img_data = base64.b64decode(raw_b64)
+            frame = CompressionManager.decode_image(img_data)
+            self.client_buffers[client_id] = frame
+            return frame
+        else:
+            # Xử lý Delta Frame để GUI luôn đạt 60 FPS siêu mượt
+            if client_id not in self.client_buffers:
+                return None # Đợi đến khi có Full Frame đầu tiên
+                
+            frame = self.client_buffers[client_id]
+            for change in data['changes']:
+                x, y = change['x'], change['y']
+                raw_b64 = change['data']
+                if raw_b64.startswith("data:image/"):
+                    raw_b64 = raw_b64.split(",", 1)[1]
+                    
+                img_data = base64.b64decode(raw_b64)
+                patch = CompressionManager.decode_image(img_data)
+                
+                ph, pw = patch.shape[:2]
+                if y + ph <= frame.shape[0] and x + pw <= frame.shape[1]:
+                    frame[y:y+ph, x:x+pw] = patch
             
-        img_data = base64.b64decode(raw_b64)
-        frame = CompressionManager.decode_image(img_data)
-        
-        return frame
+            # Cập nhật buffer
+            self.client_buffers[client_id] = frame
+            return frame
 
     async def _save_event_to_db(self, client_id: str, event_type: str, conf: float, path: str):
         try:

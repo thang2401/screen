@@ -20,6 +20,6 @@ class ScreenCapture:
         h, w = img.shape[:2]
         if w > self.max_width:
             new_w, new_h = self.max_width, int(h * (self.max_width / w))
-            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA) # INTER_AREA khử răng cưa, cho ảnh thu nhỏ cực nét
+            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR) # INTER_LINEAR cho tốc độ xử lý nhanh hơn rất nhiều, giảm giật lag
             
         return img

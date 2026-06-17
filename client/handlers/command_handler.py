@@ -322,18 +322,25 @@ class CommandHandler:
                 'Enter': 'enter', 'Backspace': 'backspace', 'Tab': 'tab', 'Escape': 'esc',
                 'Shift': 'shift', 'Control': 'ctrl', 'Alt': 'alt', 'Meta': 'win',
                 'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right',
-                'CapsLock': 'capslock', 'Delete': 'delete', ' ': 'space'
+                'CapsLock': 'capslock', 'Delete': 'delete', ' ': 'space',
+                'PageUp': 'pageup', 'PageDown': 'pagedown', 'Home': 'home', 'End': 'end',
+                'Insert': 'insert', 'ContextMenu': 'apps'
             }
             
             target_key = special_keys.get(key_str, key_str.lower())
+            
+            # PyAutoGUI expects lowercase for single character keys in keyDown/keyUp
+            if len(target_key) == 1:
+                target_key = target_key.lower()
+                
             valid_keys = pyautogui.KEY_NAMES
             if target_key in valid_keys or len(target_key) == 1:
                 if is_pressed is None:
-                    pyautogui.press(target_key, _pause=False)
+                    pyautogui.press(target_key)
                 elif is_pressed:
-                    pyautogui.keyDown(target_key, _pause=False)
+                    pyautogui.keyDown(target_key)
                 else:
-                    pyautogui.keyUp(target_key, _pause=False)
+                    pyautogui.keyUp(target_key)
                     
             return {'message': 'Key processed via pyautogui'}
         except Exception as e:
