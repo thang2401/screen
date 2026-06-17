@@ -46,20 +46,20 @@ class ClientService:
                 logger.info("Received UNLOCK command")
                 await self.command_handler.handle('unlock')
             elif cmd_type == CommandTypes.UPDATE_CONFIG:
-                if 'fps' in data:
+                # Cập nhật FPS nếu có
+                if isinstance(data, dict) and 'fps' in data:
                     self.fps_target = data['fps']
                     self.frame_interval = 1.0 / self.fps_target
-            
+
             # Xử lý các lệnh điều khiển mở rộng (chuột, phím, v.v.)
+            # QUAN TRỌNG: Khối này phải nằm NGOÀI elif để luôn được kiểm tra
             if isinstance(data, dict) and 'command' in data:
                 cmd = data.get('command')
                 params = data.get('params', {})
-                # For direct hardware input commands
-                if cmd == 'type_text':
-                    await self.command_handler._cmd_type_text(**params)
-                else:
-                    await self.command_handler.handle(cmd, params)
+                logger.debug(f"Executing remote command: {cmd}, params keys: {list((params or {}).keys())}")
+                await self.command_handler.handle(cmd, params)
                 
+
         except Exception as e:
             logger.error(f"Error handling message: {e}")
 

@@ -309,11 +309,15 @@ class CommandHandler:
             return {'error': str(e)}
 
     async def _cmd_keyboard(self, **kwargs):
-        """Nhấn/Nhả phím sử dụng ctypes SendInput (Chống lỗi Unikey và phân biệt hoa/thường)."""
+        """Nhấn/Nhả phím sử dụng ctypes SendInput (Hỗ trợ tổ hợp phím Ctrl/Alt/Shift)."""
         try:
             key_str = kwargs.get('key', '')
             code_str = kwargs.get('code', '')
             is_pressed = kwargs.get('is_pressed', None)
+            mod_ctrl  = kwargs.get('ctrl', False)
+            mod_alt   = kwargs.get('alt', False)
+            mod_shift = kwargs.get('shift', False)
+            mod_meta  = kwargs.get('meta', False)
             
             import sys
             if sys.platform != 'win32':
@@ -348,9 +352,8 @@ class CommandHandler:
             INPUT_KEYBOARD = 1
             KEYEVENTF_EXTENDEDKEY = 0x0001
             KEYEVENTF_KEYUP = 0x0002
-            KEYEVENTF_SCANCODE = 0x0008
             
-            # Map JS event.code to Windows Virtual-Key Code (wVk)
+            # Map JS event.code -> Windows Virtual-Key Code (wVk)
             VK_MAP = {
                 'Backspace': 0x08, 'Tab': 0x09, 'Enter': 0x0D, 'NumpadEnter': 0x0D,
                 'ShiftLeft': 0xA0, 'ShiftRight': 0xA1, 'ControlLeft': 0xA2, 'ControlRight': 0xA3,
@@ -391,45 +394,59 @@ class CommandHandler:
                     
             if not vk:
                 return {'error': f'Unsupported key/code: {key_str}/{code_str}'}
-                
-            # Sinh Hardware Scancode
-            scan = ctypes.windll.user32.MapVirtualKeyW(vk, 0)
-            
-            # Cờ KEYEVENTF_EXTENDEDKEY rất quan trọng cho các phím mũi tên, home/end, right ctrl/alt...
-            flags = 0
-            if vk in (0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E, 0x5B, 0x5C, 0x5D, 0x6F, 0xA3, 0xA5) or code_str == 'NumpadEnter':
-                flags |= KEYEVENTF_EXTENDEDKEY
-                
-            inputs = []
-            def add_input(up=False):
+
+            # Phím nào cần cờ EXTENDEDKEY
+            EXTENDED_VKS = {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+                            0x2D, 0x2E, 0x5B, 0x5C, 0x5D, 0x6F, 0xA3, 0xA5}
+
+            def make_input(vk_code, up=False):
+                scan = ctypes.windll.user32.MapVirtualKeyW(vk_code, 0)
+                flags = KEYEVENTF_KEYUP if up else 0
+                if vk_code in EXTENDED_VKS or code_str == 'NumpadEnter':
+                    flags |= KEYEVENTF_EXTENDEDKEY
                 inp = INPUT()
                 inp.type = INPUT_KEYBOARD
-                inp.union.ki.wVk = vk
+                inp.union.ki.wVk = vk_code
                 inp.union.ki.wScan = scan
-                inp.union.ki.dwFlags = flags | (KEYEVENTF_KEYUP if up else 0)
-                inputs.append(inp)
-                
-            if is_pressed is None:
-                add_input(False)
-                add_input(True)
-            elif is_pressed:
-                add_input(False)
+                inp.union.ki.dwFlags = flags
+                return inp
+
+            inputs = []
+
+            if is_pressed:
+                # Nhấn xuống: modifiers trước rồi mới đến phím chính
+                if mod_ctrl:  inputs.append(make_input(0xA2, False))  # ControlLeft
+                if mod_alt:   inputs.append(make_input(0xA4, False))  # AltLeft
+                if mod_shift: inputs.append(make_input(0xA0, False))  # ShiftLeft
+                if mod_meta:  inputs.append(make_input(0x5B, False))  # MetaLeft
+                # Chỉ gửi phím chính nếu nó không được gửi riêng như modifier
+                if vk not in (0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x5B, 0x5C):
+                    inputs.append(make_input(vk, False))
+                    inputs.append(make_input(vk, True))
+                    # Nhả modifiers sau khi phiên bấm hoàn tất
+                    if mod_shift: inputs.append(make_input(0xA0, True))
+                    if mod_alt:   inputs.append(make_input(0xA4, True))
+                    if mod_ctrl:  inputs.append(make_input(0xA2, True))
+                    if mod_meta:  inputs.append(make_input(0x5B, True))
+                else:
+                    # Đây chính là phím modifier được nhấn, chỉ gửi keydown
+                    inputs.append(make_input(vk, False))
             else:
-                add_input(True)
-                
+                # Nhả phím (keyup) – chỉ gửi keyup cho chính nó
+                inputs.append(make_input(vk, True))
+
             if inputs:
                 nInputs = len(inputs)
                 pInputs = (INPUT * nInputs)(*inputs)
                 inserted = ctypes.windll.user32.SendInput(nInputs, pInputs, ctypes.sizeof(INPUT))
                 if inserted == 0:
-                    import logging
-                    logging.getLogger(__name__).warning(f"SendInput failed for key {key_str}/{code_str}")
+                    logger.warning(f"SendInput failed for key {key_str}/{code_str}")
                     
             return {'message': f'Key {code_str or key_str} processed using SendInput'}
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Key event error: {e}")
+            logger.error(f"Key event error: {e}")
             return {'error': str(e)}
+
 
     async def _cmd_type_text(self, **kwargs):
         """Gõ chuỗi văn bản Unicode (Hỗ trợ tiếng Việt từ Unikey Local)."""

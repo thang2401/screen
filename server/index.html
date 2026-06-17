@@ -202,6 +202,9 @@
             <button class="close-btn" onclick="closeModal()">✕</button>
             <canvas id="modal-canvas" tabindex="0"
                 style="width: 100%; height: 100%; object-fit: contain; outline: none;"></canvas>
+            <!-- Hidden input để bắt IME/Unikey tiếng Việt -->
+            <input id="ime-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+                style="position:absolute;opacity:0;width:1px;height:1px;top:-9999px;left:-9999px;"/>
         </div>
     </div>
     <!-- Thêm thanh phân trang -->
@@ -367,16 +370,111 @@
         function openModal(clientId) {
             activeModalClient = clientId;
             document.getElementById('modal').style.display = 'flex';
-            canvas.focus(); // Focus vào canvas để bắt sự kiện phím
+            // Focus vào imeInput để bắt cả sự kiện IME (Unikey tiếng Việt) lẫn phím thường
+            setTimeout(() => {
+                imeInput.value = '';
+                imeInput.focus();
+            }, 50);
         }
 
         function closeModal() {
             activeModalClient = null;
             document.getElementById('modal').style.display = 'none';
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Giải phóng focus khỏi imeInput
+            imeInput.blur();
         }
 
-        // --- XỬ LÝ SỰ KIỆN TƯƠNG TÁC CANVAS ---
+        // --- XỬ LÝ SỰ KIỆN TƯƠNG TÁC CANVAS & BÀN PHÍM ---
+        const imeInput = document.getElementById('ime-input');
+
+        // Khi click vào canvas, đảm bảo imeInput được focus để nhận phím
+        canvas.addEventListener('click', () => {
+            imeInput.value = '';
+            imeInput.focus();
+        });
+
+        // Cờ theo dõi IME đang compose (Unikey đang chuyển đổi chữ)
+        let isComposing = false;
+
+        // IME bắt đầu compose (người dùng đang gõ tiếng Việt qua Unikey)
+        imeInput.addEventListener('compositionstart', () => {
+            isComposing = true;
+        });
+
+        // IME kết thúc → lấy chữ cuối cùng và gửi qua type_text
+        imeInput.addEventListener('compositionend', (e) => {
+            isComposing = false;
+            const text = e.data || imeInput.value;
+            if (text && activeModalClient) {
+                sendCommand('type_text', { text: text });
+            }
+            imeInput.value = '';
+        });
+
+        // Bắt input thông thường (copy-paste hoặc không qua IME)
+        imeInput.addEventListener('input', (e) => {
+            if (isComposing) return; // Đang compose, bỏ qua
+            const text = imeInput.value;
+            if (text) {
+                sendCommand('type_text', { text: text });
+                imeInput.value = '';
+            }
+        });
+
+        // Các phím đặc biệt và phím kết hợp (Ctrl+C, Backspace, Enter, ...)
+        // Phải dùng keydown để bắt và gửi TRƯỚC khi IME xử lý
+        const SPECIAL_CODES = new Set([
+            'Backspace','Tab','Enter','NumpadEnter','Escape','CapsLock','Pause',
+            'ShiftLeft','ShiftRight','ControlLeft','ControlRight',
+            'AltLeft','AltRight','MetaLeft','MetaRight','ContextMenu',
+            'ArrowLeft','ArrowRight','ArrowUp','ArrowDown',
+            'Home','End','PageUp','PageDown','Insert','Delete',
+            'PrintScreen','ScrollLock','NumLock',
+            'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+        ]);
+
+        imeInput.addEventListener('keydown', (e) => {
+            // Nếu là phím đặc biệt hoặc phím kết hợp (Ctrl/Alt + phím) → gửi keyboard event
+            const isModified = e.ctrlKey || e.altKey || e.metaKey;
+            const isSpecial = SPECIAL_CODES.has(e.code);
+
+            if (isSpecial || isModified) {
+                e.preventDefault();
+                // Gửi keyboard press
+                sendCommand('keyboard', {
+                    key: e.key,
+                    code: e.code,
+                    ctrl: e.ctrlKey,
+                    alt: e.altKey,
+                    shift: e.shiftKey,
+                    meta: e.metaKey,
+                    is_pressed: true
+                });
+                return;
+            }
+            // Các phím ký tự thông thường → để IME/input event xử lý để bắt tiếng Việt
+        });
+
+        imeInput.addEventListener('keyup', (e) => {
+            const isModified = e.ctrlKey || e.altKey || e.metaKey;
+            const isSpecial = SPECIAL_CODES.has(e.code);
+
+            if (isSpecial || isModified || SPECIAL_CODES.has(e.code)) {
+                e.preventDefault();
+                sendCommand('keyboard', {
+                    key: e.key,
+                    code: e.code,
+                    ctrl: e.ctrlKey,
+                    alt: e.altKey,
+                    shift: e.shiftKey,
+                    meta: e.metaKey,
+                    is_pressed: false
+                });
+            }
+        });
+
+        // --- XỬ LÝ SỰ KIỆN TƯƠNG TÁC CANVAS (CHUỘT) ---
 
         function getNormalizedCoordinates(event) {
             const rect = canvas.getBoundingClientRect();
@@ -446,6 +544,9 @@
         canvas.addEventListener('mousemove', handleMouseMove);
 
         canvas.addEventListener('mousedown', (e) => {
+            // Khi click chuột, đảm bảo focus về imeInput để bắt bàn phím
+            imeInput.value = '';
+            imeInput.focus();
             const coords = getNormalizedCoordinates(e);
             sendCommand('mouse_click', {
                 x_percent: coords.x_percent,
@@ -474,24 +575,6 @@
         }, { passive: false });
 
         canvas.addEventListener('contextmenu', e => e.preventDefault());
-
-        canvas.addEventListener('keydown', (e) => {
-            e.preventDefault();
-            sendCommand('keyboard', {
-                key: e.key,
-                code: e.code,
-                is_pressed: true
-            });
-        });
-
-        canvas.addEventListener('keyup', (e) => {
-            e.preventDefault();
-            sendCommand('keyboard', {
-                key: e.key,
-                code: e.code,
-                is_pressed: false
-            });
-        });
     </script>
 </body>
 
